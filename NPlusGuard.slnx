@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/NPlusGuard.Analyzers/NPlusGuard.Analyzers.csproj" />
+    <Project Path="src/NPlusGuard.AspNetCore/NPlusGuard.AspNetCore.csproj" />
+    <Project Path="src/NPlusGuard/NPlusGuard.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/NPlusGuard.Analyzers.Tests/NPlusGuard.Analyzers.Tests.csproj" />
+    <Project Path="tests/NPlusGuard.AspNetCore.Tests/NPlusGuard.AspNetCore.Tests.csproj" />
+    <Project Path="tests/NPlusGuard.Tests/NPlusGuard.Tests.csproj" />
+  </Folder>
+</Solution>
