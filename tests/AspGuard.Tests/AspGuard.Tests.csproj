@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AspGuard\AspGuard.csproj" />
+    <ProjectReference Include="..\..\samples\AspGuard.Sample.Api\AspGuard.Sample.Api.csproj" />
+  </ItemGroup>
+
+</Project>

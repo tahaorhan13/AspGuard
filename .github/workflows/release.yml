@@ -1,0 +1,38 @@
+name: Release
+
+# Runs when a version tag such as v0.1.0 or v0.1.0-preview.1 is pushed.
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Build
+        run: dotnet build AspGuard.slnx -c Release
+
+      - name: Test
+        run: dotnet test AspGuard.slnx -c Release --no-build
+
+      - name: Pack
+        run: |
+          dotnet pack src/AspGuard.Core -c Release --no-build -o ./nupkg
+          dotnet pack src/AspGuard -c Release --no-build -o ./nupkg
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: nupkg
+          path: ./nupkg/*
+
+      - name: Publish to NuGet
+        run: dotnet nuget push "./nupkg/*.nupkg" --api-key "${{ secrets.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json --skip-duplicate

@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <Description>One line (services.AddAspGuard()) adds baseline security middleware (security headers, HSTS, HTTPS redirection, cross-site request protection, rate limiting), EF Core N+1 detection for every DbContext, and Roslyn analyzers with code fixes (queries in loops, raw SQL injection, generated XML documentation).</Description>
+    <RootNamespace>AspGuard</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AspGuard.Core\AspGuard.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="AspGuard.Tests" />
+  </ItemGroup>
+
+  <!-- The Roslyn analyzers and code fixes ship inside this package (analyzers/dotnet/cs), so installing AspGuard enables them. -->
+  <ItemGroup>
+    <ProjectReference Include="..\AspGuard.Analyzers\AspGuard.Analyzers.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <ProjectReference Include="..\AspGuard.Analyzers.CodeFixes\AspGuard.Analyzers.CodeFixes.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <None Include="..\AspGuard.Analyzers\bin\$(Configuration)\netstandard2.0\AspGuard.Analyzers.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    <None Include="..\AspGuard.Analyzers.CodeFixes\bin\$(Configuration)\netstandard2.0\AspGuard.Analyzers.CodeFixes.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+  </ItemGroup>
+
+</Project>

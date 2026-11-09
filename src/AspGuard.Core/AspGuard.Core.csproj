@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+    <Description>Core of AspGuard without ASP.NET Core: detects N+1 queries and excessive query counts in EF Core applications at runtime, with the offending call site. Web applications should install the AspGuard package instead.</Description>
+    <RootNamespace>AspGuard</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="AspGuard.Core.Tests" />
+    <InternalsVisibleTo Include="AspGuard" />
+    <InternalsVisibleTo Include="AspGuard.Tests" />
+    <InternalsVisibleTo Include="AspGuard.Benchmarks" />
+  </ItemGroup>
+
+</Project>

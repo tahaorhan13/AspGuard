@@ -1,19 +1,20 @@
-# CLAUDE.md — NPlusGuard (EF Core N+1 Detector)
+# CLAUDE.md — AspGuard (ASP.NET Core güvenlik + EF Core N+1 + doküman üretimi)
 
-> Not: Proje adı NPlusGuard olarak kesinleşti (eski çalışma adı "QueryGuard", NuGet/GitHub'da çakışma çıktığı için değiştirildi).
+> Not: Proje adı **AspGuard** (eski adlar: "QueryGuard" → "NPlusGuard"). Kapsam N+1'in ötesine geçtiği için şemsiye isme geçildi; NuGet/GitHub'da çakışma kontrol edildi (Kasım 2026).
 
 ## Proje özeti
 
-NPlusGuard, EF Core kullanan .NET uygulamalarında **N+1 sorgu problemini** ve **aşırı sorgu sayısını** tespit eden açık kaynak bir kütüphanedir. İki parçadan oluşur:
+AspGuard, ASP.NET Core + EF Core uygulamalarına **tek satırla** (`builder.Services.AddAspGuard();`) şunları ekleyen açık kaynak bir kütüphanedir:
 
-1. **Runtime dedektör:** EF Core interceptor'ı ile bir kapsam (HTTP isteği, test, manuel scope) içinde atılan sorguları izler; aynı "şekildeki" sorgunun tekrar tekrar atıldığını görünce uyarır ve sorunun oluştuğu kod satırını gösterir.
-2. **Roslyn analyzer:** Derleme anında döngü içinde veritabanı sorgusu çalıştırılan kodu tespit edip uyarı verir.
+1. **Güvenlik middleware'leri** (`IStartupFilter` ile otomatik): güvenlik header'ları, HSTS ve HTTPS yönlendirme (Development dışında), cookie taşıyan isteklerde CSRF koruması (`Sec-Fetch-Site`/`Origin`), IP başına rate limit, `Server` header'ının kaldırılması. Hepsi `AspGuardOptions.Security` ile ayarlanır/kapatılır.
+2. **Runtime N+1 dedektörü:** Her HTTP isteği bir scope; tüm DbContext'ler EF Core'un public `DiagnosticListener` olaylarıyla otomatik izlenir (DbContext'e `UseAspGuard` gerekmez). Aynı "şekildeki" sorgu tekrarlanınca uyarır ve kod satırını gösterir. Varsayılan: yalnızca Development'ta açık.
+3. **Roslyn analyzer + code fix'ler:** döngüde sorgu, raw SQL injection, bloklayan async, bellekte filtreleme ve **AG030: metot isminden XML yorum üretimi** (`AddPerson` → `/// Kişi ekler.`), kural tabanlı, TR (varsayılan) / EN.
 
-Hedef kitle: EF Core kullanan ASP.NET Core geliştiricileri. Ana değer önerisi: **"3 satır kurulum, N+1'i production'a çıkmadan yakala."**
+Hedef kitle: ASP.NET Core geliştiricileri. Ana değer önerisi: **"Tek satır kurulum: temel güvenlik, N+1 tespiti ve otomatik doküman."**
 
 ## Genel kurallar (Claude Code için)
 
-- **Fazlar halinde çalış.** Her fazın sonunda dur, ne yaptığını kısaca özetle, testlerin geçtiğini göster ve onayımı bekle. Onay almadan sonraki faza geçme.
+- **Fazları sırayla, onay beklemeden ve durmadan uygula.** Bir sonraki faza geçmeden önce `dotnet build` (uyarısız) ve `dotnet test` tamamen temiz geçmeli; kırık bir şey bırakıp ilerleme. Her faz bitince kökteki `PROGRESS.md`'yi güncelle (biten faz, kalanlar, bilinen sorunlar) ki bağlam dolsa bile oradan devam edilebilsin. Karar noktasında kullanıcıya sorma: bu dokümana en uygun seçeneği seç ve gerekçesini kökteki `DECISIONS.md`'ye kısa bir madde olarak yaz. Tüm fazlar bitince tek bir final özeti ver (ne yapıldı, test/benchmark sonuçları, yerel deneme adımları, sınırlamalar).
 - Bir faza başlamadan önce kısa bir plan çıkar; plan bu dokümandan saparsa nedenini söyle.
 - **Kod, yorumlar, XML doc, README, commit mesajları İngilizce** olacak. Benimle sohbette Türkçe konuş.
 - Yeni bir NuGet bağımlılığı eklemeden önce sor. Paket sürümlerini ezbere yazma; güncel kararlı sürümü kontrol et.
@@ -22,6 +23,7 @@ Hedef kitle: EF Core kullanan ASP.NET Core geliştiricileri. Ana değer önerisi
 - Reflection hileleri, EF Core internal API'leri (`Microsoft.EntityFrameworkCore.Internal`) ve `#pragma` ile uyarı bastırma kullanma. Zorunlu kalırsan önce sor.
 - Runtime kütüphanesi production'da kapalıyken **sıfıra yakın maliyetli** olmalı; açıkken de maliyeti ölçülmüş olmalı (Faz 4'te benchmark).
 - NuGet'e veya GitHub'a hiçbir şey **yayınlama/push etme**. Yayınlamayı ben yapacağım.
+- Git komutu çalıştırma (init/commit/push yok); commit'i kullanıcı yapacak. GitHub Actions workflow'larını yaz ama çalıştırmaya çalışma.
 
 ## Teknik kararlar
 
@@ -35,17 +37,18 @@ Hedef kitle: EF Core kullanan ASP.NET Core geliştiricileri. Ana değer önerisi
 
 ```
 /src
-  NPlusGuard/                    # Çekirdek: interceptor, scope, tespit mantığı, raporlama
-  NPlusGuard.AspNetCore/         # Middleware, DI uzantıları, response header
-  NPlusGuard.Analyzers/          # Roslyn analyzer (netstandard2.0)
+  AspGuard.Core/                 # ASP.NET'siz çekirdek: interceptor, EF diagnostic observer, scope, tespit, options
+  AspGuard/                      # Kullanıcının kurduğu paket: AddAspGuard, startup filter, güvenlik middleware'leri, analyzer'ları paketler
+  AspGuard.Analyzers/            # Roslyn analyzer (netstandard2.0), doküman metni üreteci dahil
+  AspGuard.Analyzers.CodeFixes/  # Code fix provider'lar (analyzer'dan ayrı assembly: RS1038)
 /tests
-  NPlusGuard.Tests/
-  NPlusGuard.AspNetCore.Tests/
-  NPlusGuard.Analyzers.Tests/
+  AspGuard.Core.Tests/
+  AspGuard.Tests/
+  AspGuard.Analyzers.Tests/
 /samples
-  NPlusGuard.Sample.Api/         # Kasıtlı N+1 içeren ve düzeltilmiş endpoint'li örnek API
+  AspGuard.Sample.Api/           # Kasıtlı N+1 içeren ve düzeltilmiş endpoint'li örnek API
 /benchmarks
-  NPlusGuard.Benchmarks/
+  AspGuard.Benchmarks/
 /docs
 README.md
 LICENSE (MIT)
@@ -76,7 +79,9 @@ CHANGELOG.md
 
 **Lazy loading** kaynaklı N+1'ler de aynı mekanizmayla yakalanmalı (testte gösterilsin).
 
-## Hedeflenen kullanım (taslak, Faz 0'da netleştirilecek)
+## Kullanım
+
+Güncel kullanım: `builder.Services.AddAspGuard();` (başka satır gerekmez). Aşağıdaki taslak tarihsel (NPlusGuard dönemi):
 
 ```csharp
 // Program.cs
@@ -129,6 +134,7 @@ Kurallar:
 ### Faz 1 — Çekirdek runtime dedektör
 - `DbCommandInterceptor` (sync + async), scope yönetimi, SQL normalizasyonu, N+1 ve aşırı sorgu kuralları, çağrı yeri tespiti, Log/Throw modları ve `OnDetected` callback'i, Suppress.
 - Testler: gerçek N+1 senaryosu (döngüde sorgu), `Include` ile düzeltilmiş senaryo (uyarı yok), lazy loading N+1, eşik altı durum, suppress, paralel/async scope izolasyonu, normalizasyon birim testleri.
+- **Gizlilik:** Log, exception mesajı ve raporlara varsayılan olarak parametre değerleri yazılmaz; yalnızca normalize edilmiş SQL (literal'ler placeholder) yazılır. `IncludeParameterValues` (varsayılan `false`) açık olsa bile değerler yalnızca DbContext'te `EnableSensitiveDataLogging` de açıksa gösterilir. Varsayılan ayarda log çıktısında parametre değerinin geçmediğini doğrulayan test olmalı; README'de "Privacy" başlığı altında anlatılmalı.
 
 ### Faz 2 — ASP.NET Core entegrasyonu
 - DI uzantıları, middleware, response header'ları, `IOptions` ile yapılandırma.
@@ -146,6 +152,19 @@ Kurallar:
 - README: tek cümlelik değer önerisi, kurulum, 5 satırlık kullanım, örnek log çıktısı, analyzer ekran görüntüsü yeri, benchmark tablosu, yapılandırma seçenekleri, sınırlamalar (dürüst ol: false positive/negative durumları).
 - CONTRIBUTING.md, CHANGELOG.md, issue ve PR template'leri.
 
+### Faz 5 — Opt-in ve legacy desteği
+- `[GuardQueries]` attribute'u (sınıf ve metot seviyesinde). Options'a `Scope = AllServices | AttributedOnly` ekle; varsayılan `AllServices`.
+- Analyzer, `AttributedOnly` modunda (`.editorconfig` ayarıyla) sadece işaretli sınıfları kontrol etsin.
+- Baseline desteği: mevcut runtime bulgularını baseline dosyasına yazma ve sadece yeni bulguları raporlama.
+
+### Faz 6 — Ek analyzer kuralları ve code fix'ler
+- QG010: `FromSqlRaw`/`ExecuteSqlRaw`/`SqlQueryRaw`'a string birleştirme, `string.Format` veya dinamik oluşturulmuş string verilmesi (SQL injection riski). Code fix: interpolasyonlu `FromSql`/`ExecuteSql`'e dönüştür. EF Core'un EF1002 kuralıyla çakışmasın; onun yakaladığını tekrar raporlama.
+- QG020: `ToList`/`ToArray`/`AsEnumerable` sonrası `Where`/`Select` ile filtreleme (tabloyu belleğe çekme).
+- QG021: EF sorgularında `.Result`/`.Wait()` kullanımı.
+- QG001 için code fix: döngü içinde `Find`/`FirstOrDefault(Id == ...)` kalıbını, döngü öncesinde `Contains` ile tek sorgu + sözlük/lookup'a dönüştür. Sadece güvenli şekilde tanınabilen kalıplarda öner.
+- Her kural için true/false positive testleri ve `docs/rules` dokümanı. README'ye "dotnet format ile toplu düzeltme" bölümü ekle.
+- Runtime'da sorguları otomatik değiştirme/yeniden yazma yapma; tüm düzeltmeler code fix olarak, geliştirici onayıyla olur.
+
 ## Yayınlamadan önce kendi projemde deneme
 
 Faz 4 sonunda şu iki yöntem için README'ye "Local testing" bölümü ekle ve bana adımları göster:
@@ -153,9 +172,16 @@ Faz 4 sonunda şu iki yöntem için README'ye "Local testing" bölümü ekle ve 
 1. **Local NuGet feed:** `dotnet pack -c Release -o ./nupkg`, ardından hedef projede `dotnet nuget add source <yol>/nupkg -n NPlusGuardLocal` ve önizleme sürümüyle (`0.1.0-preview.1`) paket ekleme.
 2. **Project reference:** Runtime için normal `ProjectReference`; analyzer için `OutputItemType="Analyzer" ReferenceOutputAssembly="false"` ile referans.
 
+### Faz 7 — AspGuard genişlemesi (tamamlandı)
+- Yeniden adlandırma (NPlusGuard → AspGuard, QG → AG kural ID'leri).
+- Tek satır kurulum: `IStartupFilter` + EF `DiagnosticListener` ile otomatik DbContext izleme.
+- Güvenlik middleware'leri (güvenli varsayılanlar) ve integration testleri.
+- AG030: metot isminden XML yorum (kural tabanlı; local AI kullanıcı kararıyla kapsam dışı).
+
 ## Kapsam dışı (şimdilik)
 
 - EF Core dışındaki ORM'ler (Dapper vb.).
-- Code fix provider'lar.
 - Dashboard/UI.
-- Otomatik sorgu düzeltme.
+- Otomatik sorgu düzeltme (runtime'da).
+- AI/LLM ile doküman üretimi (model boyutu ve IDE performansı nedeniyle; kural tabanlı üreteç seçildi).
+- CORS ve kimlik doğrulama/yetkilendirme yapılandırması (uygulamaya özgü).

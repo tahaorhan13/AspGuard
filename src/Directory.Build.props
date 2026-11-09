@@ -7,4 +7,33 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <!-- NuGet metadata. Replace the GitHub owner with the real one before publishing. -->
+  <PropertyGroup>
+    <Authors>AspGuard contributors</Authors>
+    <Copyright>Copyright (c) AspGuard contributors</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/AspGuard/AspGuard</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/AspGuard/AspGuard</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>aspnetcore;security;csrf;rate-limiting;security-headers;efcore;n+1;performance;analyzer;roslyn;xml-documentation</PackageTags>
+    <PackageReleaseNotes>See CHANGELOG.md</PackageReleaseNotes>
+    <!-- SourceLink (built into the .NET SDK), embedded sources and symbol packages. -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)../README.md" Pack="true" PackagePath="/" Visible="false" />
+  </ItemGroup>
+
+  <!-- Package icon: drop a 128x128 PNG at assets/icon.png and it is picked up automatically. -->
+  <PropertyGroup Condition="Exists('$(MSBuildThisFileDirectory)../assets/icon.png')">
+    <PackageIcon>icon.png</PackageIcon>
+  </PropertyGroup>
+  <ItemGroup Condition="Exists('$(MSBuildThisFileDirectory)../assets/icon.png')">
+    <None Include="$(MSBuildThisFileDirectory)../assets/icon.png" Pack="true" PackagePath="/" Visible="false" />
+  </ItemGroup>
+
 </Project>

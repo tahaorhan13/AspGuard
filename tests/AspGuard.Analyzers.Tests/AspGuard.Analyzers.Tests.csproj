@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Analyzer.Testing" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.CodeFix.Testing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AspGuard.Analyzers\AspGuard.Analyzers.csproj" />
+    <ProjectReference Include="..\..\src\AspGuard.Analyzers.CodeFixes\AspGuard.Analyzers.CodeFixes.csproj" />
+  </ItemGroup>
+
+</Project>
