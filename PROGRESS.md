@@ -15,8 +15,7 @@ Resume point if the session is interrupted. Update after every phase.
 
 ## Known issues
 
-- Before publishing: replace the placeholder GitHub owner (`AspGuard/AspGuard`) in `src/Directory.Build.props` and
-  `src/AspGuard.Analyzers/Rules.cs`; add `assets/icon.png`; add the analyzer screenshot to the README.
+- Before publishing: add `assets/icon.png` and the analyzer screenshot to the README.
 
 
 

@@ -4,8 +4,7 @@ namespace AspGuard.Analyzers;
 
 internal static class Rules
 {
-    // Replace with the final repository URL before publishing.
-    private const string HelpBase = "https://github.com/AspGuard/AspGuard/blob/main/docs/rules/";
+    private const string HelpBase = "https://github.com/tahaorhan13/AspGuard/blob/main/docs/rules/";
 
     public static readonly DiagnosticDescriptor QueryInLoop = new(
         "AG001",

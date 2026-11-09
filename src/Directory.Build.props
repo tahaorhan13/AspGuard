@@ -7,13 +7,13 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
-  <!-- NuGet metadata. Replace the GitHub owner with the real one before publishing. -->
+  <!-- NuGet metadata. -->
   <PropertyGroup>
     <Authors>AspGuard contributors</Authors>
     <Copyright>Copyright (c) AspGuard contributors</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/AspGuard/AspGuard</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/AspGuard/AspGuard</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/tahaorhan13/AspGuard</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/tahaorhan13/AspGuard</RepositoryUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>aspnetcore;security;csrf;rate-limiting;security-headers;efcore;n+1;performance;analyzer;roslyn;xml-documentation</PackageTags>
     <PackageReleaseNotes>See CHANGELOG.md</PackageReleaseNotes>
