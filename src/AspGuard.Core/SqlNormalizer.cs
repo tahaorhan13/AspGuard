@@ -105,7 +105,7 @@ internal static partial class SqlNormalizer
             }
         }
 
-        while (sb.Length > 0 && (sb[^1] == ';' || sb[^1] == ' '))
+        while (sb.Length > 0 && (sb[sb.Length - 1] == ';' || sb[sb.Length - 1] == ' '))
         {
             sb.Length--;
         }
@@ -131,7 +131,7 @@ internal static partial class SqlNormalizer
         return hash.ToString("x16", System.Globalization.CultureInfo.InvariantCulture);
     }
 
-    private static char Last(StringBuilder sb) => sb.Length == 0 ? ' ' : sb[^1];
+    private static char Last(StringBuilder sb) => sb.Length == 0 ? ' ' : sb[sb.Length - 1];
 
     private static bool IsIdentifierChar(char c) => char.IsLetterOrDigit(c) || c == '_' || c == '$' || c == '#';
 
@@ -230,6 +230,14 @@ internal static partial class SqlNormalizer
         return i;
     }
 
-    [GeneratedRegex(@"\b(IN)\s*\(\s*\?(?:\s*,\s*\?)*\s*\)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private const string InListPattern = @"\b(IN)\s*\(\s*\?(?:\s*,\s*\?)*\s*\)";
+
+#if NETFRAMEWORK
+    private static readonly Regex InListRegex = new(InListPattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+
+    private static Regex InList() => InListRegex;
+#else
+    [GeneratedRegex(InListPattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex InList();
+#endif
 }

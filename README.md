@@ -3,7 +3,8 @@
 **One line in `Program.cs`, and your ASP.NET Core app gets baseline HTTP security, EF Core N+1 detection with the
 offending file and line, and compile-time checks with code fixes, including generated XML documentation.**
 
-> Status: `0.1.0-preview.1`. Not published yet; see [Local testing](#local-testing).
+> Status: preview, [on NuGet](https://www.nuget.org/packages/AspGuard). ASP.NET Core (.NET 8/10) **and**
+> ASP.NET 4.x / EF6 on .NET Framework 4.6.2+ ([details](#net-framework-aspnet-4x-and-ef6)).
 
 ```csharp
 builder.Services.AddAspGuard();
@@ -21,11 +22,17 @@ That is the whole setup. No `app.Use...()` call and no change to your `DbContext
 ## Install
 
 ```bash
-dotnet add package AspGuard
+dotnet add package AspGuard --prerelease
 ```
 
-`AspGuard` is the package for web applications and the only one you need. `AspGuard.Core` (query detection without
-ASP.NET Core, for console apps, workers and tests) comes with it automatically.
+`AspGuard` is the package for ASP.NET Core applications and the only one you need. `AspGuard.Core` (query detection
+without ASP.NET Core, for console apps, workers and tests) comes with it automatically.
+
+| Your application | Install |
+|---|---|
+| ASP.NET Core on .NET 8 / 10, EF Core | `AspGuard` |
+| ASP.NET 4.x (MVC 5, Web API 2, WebForms) on .NET Framework 4.6.2+ | `AspGuard.SystemWeb`, plus `AspGuard.EntityFramework6` if it uses EF6 |
+| Console app, Windows service or library with EF6 on .NET Framework | `AspGuard.EntityFramework6` |
 
 ## Configure (optional)
 
@@ -128,17 +135,76 @@ using var scope = AspGuardScope.Begin("import-job");
 // ... code that uses the DbContext ...
 ```
 
+## .NET Framework (ASP.NET 4.x and EF6)
+
+Legacy applications are where N+1 queries hide best: EF6 turns lazy loading on by default. AspGuard supports
+**.NET Framework 4.6.2 and later**.
+
+```powershell
+Install-Package AspGuard.SystemWeb -Prerelease          # security + per-request scope + analyzers
+Install-Package AspGuard.EntityFramework6 -Prerelease   # EF6 query detection
+```
+
+**There is no line to write.** Both packages register themselves before the application starts
+(`PreApplicationStartMethod`): `AspGuard.SystemWeb` adds an HTTP module, and `AspGuard.EntityFramework6` adds an EF6
+command interceptor. Every request becomes a scope; an N+1 is reported with its call site, lazy loading included, and the
+scope is named after the route (`GET /api/orders/{id}`).
+
+| | ASP.NET 4.x default |
+|---|---|
+| Query detection | on when `<compilation debug="true">` is set in web.config, off otherwise |
+| Security headers, CSRF protection, rate limiting (300/min/IP) | on, same rules as ASP.NET Core |
+| `Server`, `X-AspNet-Version`, `X-AspNetMvc-Version` headers | removed (integrated pipeline) |
+| HSTS | on over HTTPS (or `X-Forwarded-Proto: https`) when not debugging, never for `localhost` |
+| HTTPS redirection | **off**: the module cannot know the HTTPS port, and a load balancer often terminates TLS. Turn it on with `o.Security.HttpsRedirection = true` |
+| Logging | `System.Diagnostics.Trace` (Visual Studio output window), or your own `ILoggerFactory` |
+
+Change defaults in `Global.asax`:
+
+```csharp
+protected void Application_Start()
+{
+    AspGuardFramework.Configure(o =>
+    {
+        o.NPlusOneThreshold = 5;
+        o.Security.RateLimit.ExcludedPaths.Add("/health");
+    });
+    // AspGuardFramework.LoggerFactory = myLoggerFactory;   // optional: route findings to Serilog, NLog, ...
+}
+```
+
+Outside ASP.NET (console apps, services, tests), call `AspGuardEntityFramework6.Register()` once and wrap the work in a
+scope:
+
+```csharp
+AspGuardEntityFramework6.Register();
+using (AspGuardScope.Begin("nightly-import"))
+{
+    // ... code that uses your DbContext ...
+}
+```
+
+The analyzers recognize EF6 (`System.Data.Entity`) too: queries in loops (AG001/AG002), raw SQL injection in
+`Database.SqlQuery`, `ExecuteSqlCommand` and `DbSet.SqlQuery` (AG010; EF6 has no built-in check, so direct
+interpolation and concatenation are reported as well), blocking calls (AG021) and generated documentation (AG030). They
+need Visual Studio 2022 17.8 or later (or the .NET 8 SDK) to build the project; the project itself can target
+.NET Framework 4.6.2 and use C# 7.3. For `packages.config` projects, the package's install script adds the analyzers.
+
+**On .NET Framework 4.5.2 or older?** Microsoft no longer supports those versions. Moving to 4.6.2 or 4.8 is usually only
+a change of the target framework in the project properties, and it is worth doing for the security updates alone.
+
 ## Analyzers
 
-The analyzers ship inside the `AspGuard` package and need no registration.
+The analyzers ship inside the `AspGuard` and `AspGuard.SystemWeb` packages and need no registration. They work on
+EF Core and EF6 code.
 
 | Rule | Description | Default | Code fix |
 |---|---|---|---|
-| [AG001](docs/rules/AG001.md) | EF Core query executed inside a `foreach`/`for`/`while`/`do` loop (including `Find`/`FindAsync`) | Warning | `FirstOrDefault`/`SingleOrDefault(x => x.Key == loopVar)` in a `foreach` becomes one `Contains` query + `ToLookup` |
+| [AG001](docs/rules/AG001.md) | EF Core / EF6 query executed inside a `foreach`/`for`/`while`/`do` loop (including `Find`/`FindAsync`) | Warning | `FirstOrDefault`/`SingleOrDefault(x => x.Key == loopVar)` in a `foreach` becomes one `Contains` query + `ToLookup` |
 | [AG002](docs/rules/AG002.md) | EF Core query executed inside an in-memory `Select`/`SelectMany`/`Where`/`ForEach` lambda | Warning | no |
-| [AG010](docs/rules/AG010.md) | Dynamically built SQL (`string.Format`, `StringBuilder`, interpolated or concatenated *variables*) passed to `FromSqlRaw`/`ExecuteSqlRaw`/`SqlQueryRaw`. Direct interpolation or concatenation is left to EF Core's EF1002 | Warning | `string.Format` becomes the interpolated `FromSql`/`ExecuteSql`/`SqlQuery` |
+| [AG010](docs/rules/AG010.md) | Dynamically built SQL passed to a raw SQL method: EF Core `FromSqlRaw`/`ExecuteSqlRaw`/`SqlQueryRaw` (direct interpolation is left to EF Core's EF1002), EF6 `Database.SqlQuery`/`ExecuteSqlCommand`/`DbSet.SqlQuery` | Warning | `string.Format` becomes the interpolated `FromSql`/`ExecuteSql`/`SqlQuery` (EF Core) or `{0}` placeholders with parameters (EF6) |
 | [AG020](docs/rules/AG020.md) | `ToList`/`ToArray`/`AsEnumerable` of a query directly followed by `Where`/`Select` (the whole table is pulled into memory) | Warning | no |
-| [AG021](docs/rules/AG021.md) | `.Result` / `.Wait()` / `.GetAwaiter().GetResult()` on an EF Core async call | Warning | no |
+| [AG021](docs/rules/AG021.md) | `.Result` / `.Wait()` / `.GetAwaiter().GetResult()` on an EF Core or EF6 async call | Warning | no |
 | [AG030](docs/rules/AG030.md) | Method or constructor without an XML documentation comment | Info | generates `/// <summary>` from the name |
 
 Queries are recognized **semantically** (`DbSet<T>`, EF Core extension methods), not by method name, so
@@ -276,7 +342,7 @@ Before anything is published, try it in your own project in one of two ways.
 dotnet pack -c Release -o ./nupkg      # a warning about non-packable projects (tests, sample) is expected
 cd /path/to/your-project
 dotnet nuget add source /path/to/AspGuard/nupkg -n AspGuardLocal
-dotnet add package AspGuard --version 0.1.0-preview.1
+dotnet add package AspGuard --version 0.2.0-preview.1
 ```
 
 Then add `builder.Services.AddAspGuard();` to `Program.cs`. When you are done: `dotnet nuget remove source AspGuardLocal`.
@@ -313,8 +379,12 @@ Then add `builder.Services.AddAspGuard();` to `Program.cs`. When you are done: `
 - **Analyzer false negatives:** queries reached through `IQueryable<T>` parameters, `Task.Run` lambdas, local functions
   or methods called from the loop are not flagged (the runtime detector covers those).
 - **Analyzer false positives:** a loop known to run once or twice is still flagged; suppress it locally.
-- EF Core only (no Dapper or raw ADO.NET). Tested with SQLite; the SQL normalizer handles SQL Server, PostgreSQL, MySQL
-  and SQLite quoting and parameter syntax.
+- **.NET Framework specifics:** EF6 has no "sensitive data logging" switch, so parameter values are never included there.
+  Without the integrated pipeline (classic mode) headers can only be appended and technology headers are not removed.
+  `X-Powered-By` is added by IIS itself; remove it in web.config. The `packages.config` install script has not been
+  tested in Visual Studio yet. The rate limiter and the query scope are per application instance.
+- EF Core and EF6 only (no Dapper or raw ADO.NET). Tested with SQLite; the SQL normalizer handles SQL Server,
+  PostgreSQL, MySQL and SQLite quoting and parameter syntax.
 
 ## License
 

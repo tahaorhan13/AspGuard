@@ -1,10 +1,12 @@
 using System.Data.Common;
 using System.Globalization;
 using System.Text;
+using Microsoft.Extensions.Logging;
+#if !NETFRAMEWORK
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.Extensions.Logging;
+#endif
 
 namespace AspGuard;
 
@@ -18,18 +20,33 @@ internal sealed class AspGuardRuntime : IDisposable
     {
         Options = options;
         _logger = logger;
-        _baseline = string.IsNullOrEmpty(options.BaselineFile) ? null : new Baseline(options.BaselineFile);
+        _baseline = options.BaselineFile is { Length: > 0 } file ? new Baseline(file) : null;
     }
 
     public AspGuardOptions Options { get; }
 
     /// <summary>Disposed with the host's container; stops automatic DbContext routing to this runtime.</summary>
-    public void Dispose() => EfDiagnosticsObserver.Detach(this);
+    public void Dispose()
+    {
+#if !NETFRAMEWORK
+        EfDiagnosticsObserver.Detach(this);
+#endif
+    }
 
     public bool IsBaselined(AspGuardFinding finding) =>
         _baseline is not null && !Options.UpdateBaseline && _baseline.Contains(finding);
 
-    public void Record(AspGuardScope scope, DbCommand command, CommandEventData eventData)
+#if !NETFRAMEWORK
+    /// <summary>EF Core entry point (interceptor and diagnostic observer).</summary>
+    public void Record(AspGuardScope scope, DbCommand command, CommandEventData eventData) =>
+        Record(scope, command, eventData.Context, static context => IsSensitiveLoggingEnabled(context));
+#endif
+
+    /// <summary>
+    /// Records one command. <paramref name="sensitiveLogging"/> is only asked when parameter values could be shown,
+    /// so the common path does not pay for it (and static lambdas keep it allocation-free).
+    /// </summary>
+    public void Record<TState>(AspGuardScope scope, DbCommand command, TState state, Func<TState, bool> sensitiveLogging)
     {
         var options = Options;
         scope.Bind(this);
@@ -72,7 +89,7 @@ internal sealed class AspGuardRuntime : IDisposable
             }
         }
 
-        if (options.IncludeParameterValues && scope.NeedsParameters(stats) && IsSensitiveLoggingEnabled(eventData.Context))
+        if (options.IncludeParameterValues && scope.NeedsParameters(stats) && sensitiveLogging(state))
         {
             scope.SetParameters(stats, FormatParameters(command));
         }
@@ -156,8 +173,10 @@ internal sealed class AspGuardRuntime : IDisposable
         }
     }
 
+#if !NETFRAMEWORK
     private static bool IsSensitiveLoggingEnabled(DbContext? context) =>
         context?.GetService<IDbContextOptions>().FindExtension<CoreOptionsExtension>()?.IsSensitiveDataLoggingEnabled == true;
+#endif
 
     private static string FormatParameters(DbCommand command)
     {
@@ -172,7 +191,7 @@ internal sealed class AspGuardRuntime : IDisposable
             var value = parameter.Value is null or DBNull ? "NULL" : Convert.ToString(parameter.Value, CultureInfo.InvariantCulture) ?? "NULL";
             if (value.Length > 100)
             {
-                value = value[..100] + "…";
+                value = value.Substring(0, 100) + "…";
             }
 
             sb.Append(parameter.ParameterName).Append("='").Append(value).Append('\'');

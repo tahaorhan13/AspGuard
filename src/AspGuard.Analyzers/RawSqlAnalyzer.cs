@@ -8,14 +8,16 @@ using Microsoft.CodeAnalysis.Operations;
 namespace AspGuard.Analyzers;
 
 /// <summary>
-/// AG010: dynamically built SQL handed to <c>FromSqlRaw</c>/<c>ExecuteSqlRaw</c>/<c>SqlQueryRaw</c>.
-/// Direct interpolation and concatenation are left to EF Core's own EF1002.
+/// AG010: dynamically built SQL handed to a raw SQL method: EF Core's <c>FromSqlRaw</c>/<c>ExecuteSqlRaw</c>/<c>SqlQueryRaw</c>
+/// (direct interpolation and concatenation are left to EF Core's own EF1002), and EF6's <c>Database.SqlQuery</c>,
+/// <c>Database.ExecuteSqlCommand(Async)</c> and <c>DbSet.SqlQuery</c> (EF6 has no EF1002, so those are reported too).
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class RawSqlAnalyzer : DiagnosticAnalyzer
 {
     private const string QueryableExtensions = "Microsoft.EntityFrameworkCore.RelationalQueryableExtensions";
     private const string FacadeExtensions = "Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions";
+    private const string Ef6Database = "System.Data.Entity.Database";
 
     /// <inheritdoc />
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics { get; } = ImmutableArray.Create(Rules.DynamicRawSql);
@@ -27,7 +29,7 @@ public sealed class RawSqlAnalyzer : DiagnosticAnalyzer
         context.EnableConcurrentExecution();
         context.RegisterCompilationStartAction(start =>
         {
-            if (start.Compilation.GetTypeByMetadataName(QueryableExtensions) is null)
+            if (start.Compilation.GetTypeByMetadataName(QueryableExtensions) is null && start.Compilation.GetTypeByMetadataName(Ef6Database) is null)
             {
                 return;
             }
@@ -36,11 +38,21 @@ public sealed class RawSqlAnalyzer : DiagnosticAnalyzer
         });
     }
 
-    internal static bool IsRawSqlMethod(IMethodSymbol method)
+    internal static bool IsRawSqlMethod(IMethodSymbol method) => IsEfCoreRawSqlMethod(method) || IsEf6RawSqlMethod(method);
+
+    internal static bool IsEfCoreRawSqlMethod(IMethodSymbol method)
     {
         var type = method.ContainingType?.ToDisplayString();
         return (type == QueryableExtensions && method.Name == "FromSqlRaw")
             || (type == FacadeExtensions && method.Name is "ExecuteSqlRaw" or "ExecuteSqlRawAsync" or "SqlQueryRaw");
+    }
+
+    /// <summary>EF6 raw SQL entry points; their <c>{0}</c> placeholders become DbParameters.</summary>
+    internal static bool IsEf6RawSqlMethod(IMethodSymbol method)
+    {
+        var type = method.ContainingType?.OriginalDefinition.ToDisplayString();
+        return (type == Ef6Database && method.Name is "SqlQuery" or "ExecuteSqlCommand" or "ExecuteSqlCommandAsync")
+            || (type is "System.Data.Entity.DbSet" or "System.Data.Entity.DbSet<TEntity>" && method.Name == "SqlQuery");
     }
 
     private static void Analyze(OperationAnalysisContext context)
@@ -51,8 +63,9 @@ public sealed class RawSqlAnalyzer : DiagnosticAnalyzer
             return;
         }
 
+        // EF Core's EF1002 already reports direct interpolation/concatenation; EF6 has nothing similar.
         var sql = invocation.Arguments.FirstOrDefault(a => a.Parameter?.Name == "sql");
-        if (sql is null || !IsDynamic(sql.Value, 0, topLevel: true))
+        if (sql is null || !IsDynamic(sql.Value, 0, topLevel: !IsEf6RawSqlMethod(invocation.TargetMethod)))
         {
             return;
         }

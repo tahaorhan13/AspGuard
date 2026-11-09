@@ -9,7 +9,7 @@ internal static class Rules
     public static readonly DiagnosticDescriptor QueryInLoop = new(
         "AG001",
         "Database query executed inside a loop",
-        "EF Core query '{0}' is executed inside a loop; load the data with a single query (Include, Contains) before the loop",
+        "Database query '{0}' is executed inside a loop; load the data with a single query (Include, Contains) before the loop",
         "Performance",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
@@ -19,7 +19,7 @@ internal static class Rules
     public static readonly DiagnosticDescriptor QueryInLambda = new(
         "AG002",
         "Database query executed inside an in-memory Select/ForEach lambda",
-        "EF Core query '{0}' is executed once per element inside a lambda over an in-memory collection; load the data with a single query before iterating",
+        "Database query '{0}' is executed once per element inside a lambda over an in-memory collection; load the data with a single query before iterating",
         "Performance",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
@@ -29,11 +29,11 @@ internal static class Rules
     public static readonly DiagnosticDescriptor DynamicRawSql = new(
         "AG010",
         "Dynamically built SQL passed to a raw SQL method",
-        "'{0}' receives a dynamically built SQL string, which risks SQL injection; use the interpolated FromSql/ExecuteSql/SqlQuery or pass values as parameters",
+        "'{0}' receives a dynamically built SQL string, which risks SQL injection; use the interpolated FromSql/ExecuteSql/SqlQuery (EF Core) or {{0}} placeholders with parameters (EF6)",
         "Security",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
-        description: "string.Format, StringBuilder, concatenation or interpolation stored in a variable make FromSqlRaw/ExecuteSqlRaw/SqlQueryRaw vulnerable to SQL injection. Direct interpolation and concatenation are reported by EF Core's own EF1002 and are not repeated here.",
+        description: "string.Format, StringBuilder, concatenation or interpolation make raw SQL methods vulnerable to SQL injection. EF Core: FromSqlRaw/ExecuteSqlRaw/SqlQueryRaw (direct interpolation and concatenation are left to EF Core's EF1002). EF6: Database.SqlQuery, Database.ExecuteSqlCommand(Async), DbSet.SqlQuery, including direct interpolation and concatenation.",
         helpLinkUri: HelpBase + "AG010.md");
 
     public static readonly DiagnosticDescriptor MaterializeThenFilter = new(
@@ -48,12 +48,12 @@ internal static class Rules
 
     public static readonly DiagnosticDescriptor BlockingOnQuery = new(
         "AG021",
-        "Blocking on an EF Core async call",
-        "Blocking on EF Core async call '{0}' wastes a thread and can deadlock; await it instead",
+        "Blocking on an Entity Framework async call",
+        "Blocking on Entity Framework async call '{0}' wastes a thread and can deadlock; await it instead",
         "Performance",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
-        description: ".Result, .Wait() and .GetAwaiter().GetResult() on an EF Core async call block the calling thread.",
+        description: ".Result, .Wait() and .GetAwaiter().GetResult() on an EF Core or EF6 async call block the calling thread.",
         helpLinkUri: HelpBase + "AG021.md");
 
     public static readonly DiagnosticDescriptor MissingDocumentation = new(

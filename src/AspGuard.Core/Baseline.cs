@@ -36,7 +36,16 @@ internal sealed class Baseline(string path)
             var document = new Document(1, entries.Values.OrderBy(e => e.Key, StringComparer.Ordinal).ToList());
             var temp = path + ".tmp";
             File.WriteAllText(temp, JsonSerializer.Serialize(document, _json));
+#if NETFRAMEWORK
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+
+            File.Move(temp, path);
+#else
             File.Move(temp, path, overwrite: true);
+#endif
         }
     }
 

@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- .NET Framework tests: they run on Windows only. Elsewhere the project still builds, but is not a test project. -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <IsTestProject Condition="'$(OS)' != 'Windows_NT'">false</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="EntityFramework" />
+    <PackageReference Include="System.Data.SQLite.EF6" />
+    <PackageReference Include="System.Data.SQLite.Core" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="System.Web" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AspGuard.EntityFramework6\AspGuard.EntityFramework6.csproj" />
+    <ProjectReference Include="..\..\src\AspGuard.SystemWeb\AspGuard.SystemWeb.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -22,13 +22,8 @@ namespace Microsoft.Extensions.DependencyInjection
         {
             ArgumentNullException.ThrowIfNull(services);
 
-            var builder = services.AddOptions<AspGuardOptions>()
-                .Validate(o => o.NPlusOneThreshold >= 2, "NPlusOneThreshold must be at least 2.")
-                .Validate(o => o.MaxQueriesPerScope >= 1, "MaxQueriesPerScope must be at least 1.")
-                .Validate(o => !o.UpdateBaseline || !string.IsNullOrEmpty(o.BaselineFile), "UpdateBaseline requires BaselineFile.")
-                .Validate(o => o.Security.RateLimit.PermitLimit >= 1, "Security.RateLimit.PermitLimit must be at least 1.")
-                .Validate(o => o.Security.RateLimit.Window > TimeSpan.Zero, "Security.RateLimit.Window must be positive.")
-                .Validate(o => o.Security.Hsts.MaxAge >= TimeSpan.Zero, "Security.Hsts.MaxAge must not be negative.");
+            var builder = services.AddOptions<AspGuardOptions>();
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<AspGuardOptions>, AspGuardOptionsValidator>());
             if (configure is not null)
             {
                 builder.Configure(configure);
@@ -40,6 +35,16 @@ namespace Microsoft.Extensions.DependencyInjection
             services.TryAddSingleton(sp => new AspGuardInterceptor(sp.GetRequiredService<AspGuardRuntime>()));
             return services;
         }
+    }
+}
+
+namespace AspGuard
+{
+    /// <summary>Reports the first invalid AspGuard option by name.</summary>
+    internal sealed class AspGuardOptionsValidator : IValidateOptions<AspGuardOptions>
+    {
+        public ValidateOptionsResult Validate(string? name, AspGuardOptions options) =>
+            OptionsValidation.Validate(options) is { } error ? ValidateOptionsResult.Fail(error) : ValidateOptionsResult.Success;
     }
 }
 

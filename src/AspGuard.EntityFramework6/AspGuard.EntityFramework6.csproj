@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net462</TargetFramework>
+    <Description>N+1 and excessive query detection for Entity Framework 6 on .NET Framework 4.6.2+, with the offending call site (lazy loading included). Registers itself in ASP.NET 4.x applications; together with AspGuard.SystemWeb every request becomes a scope.</Description>
+    <RootNamespace>AspGuard.EntityFramework6</RootNamespace>
+    <PackageTags>ef6;entity-framework;n+1;performance;aspnet;legacy;net-framework</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="EntityFramework" />
+  </ItemGroup>
+
+  <!-- System.Web is part of every .NET Framework install; it is only used for PreApplicationStartMethod. -->
+  <ItemGroup>
+    <Reference Include="System.Web" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AspGuard.Core\AspGuard.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="AspGuard.Framework.Tests" />
+  </ItemGroup>
+
+</Project>

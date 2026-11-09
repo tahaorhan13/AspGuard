@@ -26,6 +26,7 @@ jobs:
       - name: Build
         run: dotnet build AspGuard.slnx -c Release
 
+      # The .NET Framework tests run on Windows only (CI's windows-latest job); here they build but are skipped.
       - name: Test
         run: dotnet test AspGuard.slnx -c Release --no-build
 
@@ -33,6 +34,8 @@ jobs:
         run: |
           dotnet pack src/AspGuard.Core -c Release --no-build -o ./nupkg
           dotnet pack src/AspGuard -c Release --no-build -o ./nupkg
+          dotnet pack src/AspGuard.EntityFramework6 -c Release --no-build -o ./nupkg
+          dotnet pack src/AspGuard.SystemWeb -c Release --no-build -o ./nupkg
 
       - name: Upload packages
         uses: actions/upload-artifact@v4

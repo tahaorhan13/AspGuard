@@ -70,8 +70,10 @@ internal static class CallSiteResolver
         _infrastructure.GetOrAdd(assembly, static a =>
         {
             var name = a.GetName().Name ?? string.Empty;
-            return name is "AspGuard.Core" or "AspGuard" or "System" or "mscorlib" or "netstandard"
-                or "DynamicProxyGenAssembly2"
+            return name is "AspGuard.Core" or "AspGuard" or "AspGuard.EntityFramework6" or "AspGuard.SystemWeb"
+                or "System" or "mscorlib" or "netstandard" or "DynamicProxyGenAssembly2"
+                or "EntityFramework" or "EntityFramework.SqlServer"
+                || name.StartsWith("EntityFrameworkDynamicProxies", StringComparison.Ordinal)
                 || name.StartsWith("System.", StringComparison.Ordinal)
                 || name.StartsWith("Microsoft.", StringComparison.Ordinal)
                 || name.StartsWith("Castle.", StringComparison.Ordinal);
@@ -118,14 +120,14 @@ internal static class CallSiteResolver
         var type = method.DeclaringType;
         var name = method.Name;
 
-        if (name.StartsWith('<'))
+        if (name.StartsWith("<", StringComparison.Ordinal))
         {
             name = Between(name, name);
         }
 
-        while (type is not null && type.Name.StartsWith('<'))
+        while (type is not null && type.Name.StartsWith("<", StringComparison.Ordinal))
         {
-            if (type.Name.Contains(">d__", StringComparison.Ordinal))
+            if (type.Name.IndexOf(">d__", StringComparison.Ordinal) >= 0)
             {
                 name = Between(type.Name, name);
             }
@@ -138,7 +140,7 @@ internal static class CallSiteResolver
 
     private static string Between(string value, string fallback)
     {
-        var end = value.IndexOf('>', StringComparison.Ordinal);
+        var end = value.IndexOf('>');
         return end > 1 ? value.Substring(1, end - 1) : fallback;
     }
 }

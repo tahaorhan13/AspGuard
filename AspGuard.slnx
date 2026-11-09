@@ -8,11 +8,14 @@
   <Folder Name="/src/">
     <Project Path="src/AspGuard.Analyzers.CodeFixes/AspGuard.Analyzers.CodeFixes.csproj" />
     <Project Path="src/AspGuard.Analyzers/AspGuard.Analyzers.csproj" />
+    <Project Path="src/AspGuard.EntityFramework6/AspGuard.EntityFramework6.csproj" />
+    <Project Path="src/AspGuard.SystemWeb/AspGuard.SystemWeb.csproj" />
     <Project Path="src/AspGuard/AspGuard.csproj" />
     <Project Path="src/AspGuard.Core/AspGuard.Core.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/AspGuard.Analyzers.Tests/AspGuard.Analyzers.Tests.csproj" />
+    <Project Path="tests/AspGuard.Framework.Tests/AspGuard.Framework.Tests.csproj" />
     <Project Path="tests/AspGuard.Tests/AspGuard.Tests.csproj" />
     <Project Path="tests/AspGuard.Core.Tests/AspGuard.Core.Tests.csproj" />
   </Folder>

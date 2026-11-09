@@ -13,7 +13,8 @@ dotnet test
 ```
 
 You need the .NET SDK pinned in `global.json` (10.0.x). The runtime libraries target `net8.0;net10.0`, so the .NET 8
-runtime must be installed to run the tests for both targets. Tests use SQLite in memory: no Docker or database server.
+runtime must be installed to run the tests for both targets. `tests/AspGuard.Framework.Tests` targets .NET Framework 4.8
+and runs on Windows only (elsewhere it builds but is skipped). Tests use SQLite in memory: no Docker or database server.
 
 ## Repository layout
 
@@ -21,6 +22,8 @@ runtime must be installed to run the tests for both targets. Tests use SQLite in
 |---|---|
 | `src/AspGuard.Core` | Query detection without ASP.NET Core: interceptor, EF diagnostic observer, scopes, SQL normalization, reporting, options |
 | `src/AspGuard` | The package users install: `AddAspGuard()`, startup filter, security middleware, request scope; packs the analyzers |
+| `src/AspGuard.EntityFramework6` | EF6 command interceptor (`net462`), registers itself in ASP.NET 4.x |
+| `src/AspGuard.SystemWeb` | ASP.NET 4.x HTTP module (`net462`): security and per-request scope; packs the analyzers |
 | `src/AspGuard.Analyzers` | Roslyn analyzers (`netstandard2.0`), including the rule-based XML documentation generator (`DocumentationText`, `TurkishText`); shipped inside the `AspGuard` package |
 | `src/AspGuard.Analyzers.CodeFixes` | Code fix providers (`netstandard2.0`), a separate assembly because analyzers must not reference Roslyn Workspaces |
 | `tests/` | One test project per source project |

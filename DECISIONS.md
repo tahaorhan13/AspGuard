@@ -106,3 +106,42 @@ Asked of the maintainer up front: rule-based comment generation (no local AI), T
 - **Workaround:** `Microsoft.AspNetCore.Analyzers.RouteHandlerAnalyzer` crashes (AD0001) on `MapGet(pattern, OtherAssemblyType.Method)`
   in the test project; the test wraps the method group in a lambda.
 - Removed the Phase 0 placeholder `AssemblyMarker` types and smoke tests.
+
+## Phase 8 (.NET Framework 4.6.2+)
+
+Asked of the maintainer up front: the new dependencies (EntityFramework 6.5.2, Microsoft.Extensions.* 8.0.x and
+System.Text.Json for net462, Microsoft.NETFramework.ReferenceAssemblies, a SQLite EF6 provider for tests) and the
+version 0.2.0-preview.1.
+
+- **4.6.2 is the floor, not 4.5.2.** `AsyncLocal` (the scope) exists from 4.6; 4.5.2 is out of Microsoft support.
+- **Packages per world:** `AspGuard.SystemWeb` (web, ships the analyzers like `AspGuard` does) and
+  `AspGuard.EntityFramework6` (separate, because not every legacy web app uses EF6 and console apps need EF6 without
+  System.Web). `AspGuard.Core` gained a `net462` target with the detection engine only; the EF Core files are excluded
+  there. `Record` takes a "sensitive logging" callback instead of EF Core's event data.
+- **Zero lines via `PreApplicationStartMethod`** in both packages; `HttpApplication.RegisterModule` (in System.Web since
+  4.5) avoids the Microsoft.Web.Infrastructure package. `AspGuard.EntityFramework6` references System.Web only for the
+  attribute; outside ASP.NET it is ignored and `Register()` is called by hand.
+- **The request scope lives in `HttpContext.Items`.** An `AsyncLocal` set in an `IHttpModule` event does not reach the
+  handler, so the scope is created detached and found through `AspGuardScope.AmbientFallback`, which the module sets to
+  read `HttpContext.Current.Items`.
+- **Configuration without DI:** `AspGuardFramework.Configure` (accumulating, validated with the same rules as the DI
+  path, now shared in `OptionsValidation`) and an optional `LoggerFactory`; the default logger writes Warning+ to
+  `Trace`. Package defaults are applied before user configuration.
+- **ASP.NET 4.x defaults:** "Development" means `<compilation debug="true">`. HTTPS redirection is off by default:
+  unlike ASP.NET Core, the module cannot know whether an HTTPS port exists, and redirect loops behind a TLS-terminating
+  load balancer would take a site down. `X-Forwarded-Proto: https` counts as HTTPS for HSTS.
+- **Headers in `PreSendRequestHeaders`, only if absent.** MVC's AntiForgery adds `X-Frame-Options: SAMEORIGIN`; adding
+  ours earlier would produce a duplicate. Classic pipeline: `Response.Headers` is unavailable, so headers are appended.
+- **Shared rules:** the CSRF decision, header list and HSTS value moved to `SecurityRules` in the core and are used by
+  both hosts. The ASP.NET 4.x rate limiter is a small fixed-window counter (System.Threading.RateLimiting needs .NET 7+).
+- **EF6 never shows parameter values:** EF6 has no "sensitive data logging" switch, and the privacy rule requires one.
+- **Analyzers on EF6:** `EfSymbols` holds lists of EF Core and EF6 types; AG010 reports direct interpolation and
+  concatenation for EF6 (no EF1002 there), and its fix uses EF6's `{0}` parameters.
+- **Roslyn 4.8 instead of 4.14** so the analyzers load in Visual Studio 2022 17.8+ (legacy teams update slowly).
+  BenchmarkDotNet needs Roslyn 4.14, so transitive pinning is off in the (unshipped) benchmark project.
+- **Test SQLite provider:** System.Data.SQLite.EF6 2.0.3 does not bundle the native SQLite library, so the tests use the
+  1.0.119 line with System.Data.SQLite.Core, which copies `SQLite.Interop.dll` itself (test-only, same family as the
+  approved package). The .NET Framework test project runs on Windows only; elsewhere `IsTestProject` is false.
+- **Verified outside the repo:** a .NET Framework 4.6.2 / C# 7.3 project installed both packages from a local feed; AG001
+  and AG010 fired on EF6 code, the runtime loaded, and `dotnet format` added an AG030 summary.
+- **Not done:** the `packages.config` install script and the module under real IIS are not tested here.

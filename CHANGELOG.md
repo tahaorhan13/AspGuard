@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0-preview.1]
+
+### Added
+
+- **.NET Framework 4.6.2+ support.** New packages:
+  - `AspGuard.SystemWeb`: HTTP module for ASP.NET 4.x (MVC 5, Web API 2, WebForms) that registers itself
+    (`PreApplicationStartMethod`): security headers, HSTS, CSRF protection, per-IP rate limiting, removal of
+    technology headers, one query scope per request named after the route. Ships the analyzers, with install scripts
+    for `packages.config` projects.
+  - `AspGuard.EntityFramework6`: EF6 command interceptor that registers itself in ASP.NET 4.x applications
+    (`AspGuardEntityFramework6.Register()` elsewhere). Lazy-loading N+1s are reported with the call site.
+  - `AspGuard.Core` now also targets `net462` (the detection engine, without EF Core) and has `AspGuardFramework`
+    for configuration without dependency injection.
+- Analyzers recognize EF6 (`System.Data.Entity`): AG001, AG002, AG020, AG021, and AG010 for `Database.SqlQuery`,
+  `ExecuteSqlCommand(Async)` and `DbSet.SqlQuery`, including direct interpolation and concatenation. The AG010 code fix
+  turns `string.Format` into EF6 `{0}` parameters; the AG001 fix works on EF6 sets.
+
+### Changed
+
+- Analyzers are built against Roslyn 4.8, so they load in Visual Studio 2022 17.8+ and the .NET 8 SDK (was 17.14+).
+- AG001/AG002/AG021 messages say "Database query" / "Entity Framework" instead of "EF Core".
+
 ### Changed
 
 - **Renamed to AspGuard** (was NPlusGuard). The library now covers HTTP security and documentation as well as N+1
@@ -28,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.0-preview.1]
 
-First preview. Not published to NuGet yet.
+First preview.
 
 ### Added
 

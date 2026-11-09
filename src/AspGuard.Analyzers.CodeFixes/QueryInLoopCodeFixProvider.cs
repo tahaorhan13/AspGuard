@@ -210,7 +210,7 @@ public sealed class QueryInLoopCodeFixProvider : CodeFixProvider
         {
             for (var t = type; t is not null; t = t.BaseType)
             {
-                if (t.OriginalDefinition.ToDisplayString() == "Microsoft.EntityFrameworkCore.DbSet<TEntity>")
+                if (t.OriginalDefinition.ToDisplayString() is "Microsoft.EntityFrameworkCore.DbSet<TEntity>" or "System.Data.Entity.DbSet<TEntity>" or "System.Data.Entity.IDbSet<TEntity>")
                 {
                     return true;
                 }

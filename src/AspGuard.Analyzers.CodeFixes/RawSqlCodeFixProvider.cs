@@ -11,7 +11,9 @@ using Microsoft.CodeAnalysis.Formatting;
 namespace AspGuard.Analyzers;
 
 /// <summary>
-/// AG010 code fix: <c>FromSqlRaw(string.Format("... {0} ...", x))</c> becomes <c>FromSql($"... {x} ...")</c>.
+/// AG010 code fix: <c>FromSqlRaw(string.Format("... {0} ...", x))</c> becomes <c>FromSql($"... {x} ...")</c> (EF Core), and
+/// EF6's <c>SqlQuery(string.Format("... {0} ...", x))</c> becomes <c>SqlQuery("... {0} ...", x)</c>, where EF6 turns the
+/// placeholders into DbParameters.
 /// Offered only when the format string is a constant with plain <c>{n}</c> placeholders that are not inside a quoted SQL literal.
 /// </summary>
 [ExportCodeFixProvider(LanguageNames.CSharp, Name = nameof(RawSqlCodeFixProvider))]
@@ -19,6 +21,7 @@ namespace AspGuard.Analyzers;
 public sealed class RawSqlCodeFixProvider : CodeFixProvider
 {
     private const string Title = "Use the interpolated, parameterized FromSql/ExecuteSql/SqlQuery";
+    private const string Ef6Title = "Pass the values as SQL parameters ({0} placeholders)";
 
     /// <inheritdoc />
     public override ImmutableArray<string> FixableDiagnosticIds { get; } = ImmutableArray.Create("AG010");
@@ -43,11 +46,12 @@ public sealed class RawSqlCodeFixProvider : CodeFixProvider
             return;
         }
 
+        var title = model.GetSymbolInfo(invocation, context.CancellationToken).Symbol is IMethodSymbol target && RawSqlAnalyzer.IsEf6RawSqlMethod(target) ? Ef6Title : Title;
         context.RegisterCodeFix(
             CodeAction.Create(
-                Title,
+                title,
                 _ => Task.FromResult(context.Document.WithSyntaxRoot(root.ReplaceNode(invocation, replacement.WithAdditionalAnnotations(Formatter.Annotation)))),
-                equivalenceKey: Title),
+                equivalenceKey: title),
             context.Diagnostics);
     }
 
@@ -96,6 +100,16 @@ public sealed class RawSqlCodeFixProvider : CodeFixProvider
         }
 
         var interpolated = TryBuildInterpolation(text, formatArguments.Skip(1).Select(a => a.Expression).ToList());
+
+        // EF6: the same safety checks, but the format string and its values become the method's own sql/parameters.
+        if (RawSqlAnalyzer.IsEf6RawSqlMethod(method))
+        {
+            return interpolated is null
+                ? null
+                : invocation.WithArgumentList(invocation.ArgumentList.WithArguments(SyntaxFactory.SeparatedList(
+                    formatArguments.Select((a, i) => i == 0 ? a.WithLeadingTrivia(arguments[0].GetLeadingTrivia()) : a))));
+        }
+
         var newName = method.Name switch
         {
             "FromSqlRaw" => "FromSql",

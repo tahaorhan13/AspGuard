@@ -6,6 +6,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
     <RootNamespace>AspGuard.Benchmarks</RootNamespace>
+    <!-- BenchmarkDotNet needs a newer Roslyn than the analyzers are built against; this project is never shipped. -->
+    <CentralPackageTransitivePinningEnabled>false</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
 
   <ItemGroup>

@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net462</TargetFramework>
+    <Description>AspGuard for ASP.NET 4.x (MVC 5, Web API 2, WebForms) on .NET Framework 4.6.2+. Installing it is the whole setup: it registers an HTTP module that adds security headers, HSTS, CSRF protection and per-IP rate limiting, makes every request an N+1 detection scope, and ships the Roslyn analyzers with code fixes (queries in loops, raw SQL injection, generated XML documentation). Add AspGuard.EntityFramework6 for EF6 query detection.</Description>
+    <RootNamespace>AspGuard.SystemWeb</RootNamespace>
+    <PackageTags>aspnet;mvc;webapi;webforms;security;csrf;rate-limiting;security-headers;ef6;n+1;analyzer;xml-documentation;legacy;net-framework</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="System.Web" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AspGuard.Core\AspGuard.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="AspGuard.Framework.Tests" />
+  </ItemGroup>
+
+  <!-- Analyzers and code fixes (analyzers/dotnet/cs). packages.config projects need the install scripts in tools/. -->
+  <ItemGroup>
+    <ProjectReference Include="..\AspGuard.Analyzers\AspGuard.Analyzers.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <ProjectReference Include="..\AspGuard.Analyzers.CodeFixes\AspGuard.Analyzers.CodeFixes.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <None Include="..\AspGuard.Analyzers\bin\$(Configuration)\netstandard2.0\AspGuard.Analyzers.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    <None Include="..\AspGuard.Analyzers.CodeFixes\bin\$(Configuration)\netstandard2.0\AspGuard.Analyzers.CodeFixes.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    <None Include="tools\*.ps1" Pack="true" PackagePath="tools" />
+  </ItemGroup>
+
+</Project>

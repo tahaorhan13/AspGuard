@@ -10,7 +10,9 @@ AspGuard, ASP.NET Core + EF Core uygulamalarına **tek satırla** (`builder.Serv
 2. **Runtime N+1 dedektörü:** Her HTTP isteği bir scope; tüm DbContext'ler EF Core'un public `DiagnosticListener` olaylarıyla otomatik izlenir (DbContext'e `UseAspGuard` gerekmez). Aynı "şekildeki" sorgu tekrarlanınca uyarır ve kod satırını gösterir. Varsayılan: yalnızca Development'ta açık.
 3. **Roslyn analyzer + code fix'ler:** döngüde sorgu, raw SQL injection, bloklayan async, bellekte filtreleme ve **AG030: metot isminden XML yorum üretimi** (`AddPerson` → `/// Kişi ekler.`), kural tabanlı, TR (varsayılan) / EN.
 
-Hedef kitle: ASP.NET Core geliştiricileri. Ana değer önerisi: **"Tek satır kurulum: temel güvenlik, N+1 tespiti ve otomatik doküman."**
+4. **.NET Framework 4.6.2+ desteği:** `AspGuard.SystemWeb` (ASP.NET 4.x HTTP modülü, kendini `PreApplicationStartMethod` ile kaydeder) ve `AspGuard.EntityFramework6` (EF6 interceptor). Analyzer'lar EF6'yı da tanır.
+
+Hedef kitle: ASP.NET Core ve legacy ASP.NET 4.x / EF6 geliştiricileri. Ana değer önerisi: **"Tek satır kurulum: temel güvenlik, N+1 tespiti ve otomatik doküman."**
 
 ## Genel kurallar (Claude Code için)
 
@@ -27,7 +29,7 @@ Hedef kitle: ASP.NET Core geliştiricileri. Ana değer önerisi: **"Tek satır k
 
 ## Teknik kararlar
 
-- Runtime kütüphaneleri: `net8.0;net10.0` multi-target (EF Core 8 ve EF Core 10 için koşullu paket referansları).
+- Runtime kütüphaneleri: `net8.0;net10.0` multi-target (EF Core 8 ve EF Core 10 için koşullu paket referansları); legacy paketler ve `AspGuard.Core` ayrıca `net462`.
 - Analyzer: `netstandard2.0` (Roslyn analyzer zorunluluğu), `Microsoft.CodeAnalysis.CSharp`.
 - Test: xUnit. EF testleri için **SQLite in-memory** (Docker gerektirmesin). Analyzer testleri için `Microsoft.CodeAnalysis.CSharp.Analyzer.Testing`.
 - Benchmark: BenchmarkDotNet.
@@ -39,12 +41,15 @@ Hedef kitle: ASP.NET Core geliştiricileri. Ana değer önerisi: **"Tek satır k
 /src
   AspGuard.Core/                 # ASP.NET'siz çekirdek: interceptor, EF diagnostic observer, scope, tespit, options
   AspGuard/                      # Kullanıcının kurduğu paket: AddAspGuard, startup filter, güvenlik middleware'leri, analyzer'ları paketler
+  AspGuard.EntityFramework6/     # EF6 interceptor (net462)
+  AspGuard.SystemWeb/            # ASP.NET 4.x modülü (net462), analyzer'ları paketler
   AspGuard.Analyzers/            # Roslyn analyzer (netstandard2.0), doküman metni üreteci dahil
   AspGuard.Analyzers.CodeFixes/  # Code fix provider'lar (analyzer'dan ayrı assembly: RS1038)
 /tests
   AspGuard.Core.Tests/
   AspGuard.Tests/
   AspGuard.Analyzers.Tests/
+  AspGuard.Framework.Tests/      # net48, yalnızca Windows'ta çalışır
 /samples
   AspGuard.Sample.Api/           # Kasıtlı N+1 içeren ve düzeltilmiş endpoint'li örnek API
 /benchmarks
@@ -178,9 +183,14 @@ Faz 4 sonunda şu iki yöntem için README'ye "Local testing" bölümü ekle ve 
 - Güvenlik middleware'leri (güvenli varsayılanlar) ve integration testleri.
 - AG030: metot isminden XML yorum (kural tabanlı; local AI kullanıcı kararıyla kapsam dışı).
 
+### Faz 8 — .NET Framework 4.6.2+ desteği (tamamlandı)
+- `AspGuard.Core`'a net462 hedefi, `AspGuard.SystemWeb`, `AspGuard.EntityFramework6`, analyzer'larda EF6, Roslyn 4.8.
+- Sürüm 0.2.0-preview.1.
+
 ## Kapsam dışı (şimdilik)
 
-- EF Core dışındaki ORM'ler (Dapper vb.).
+- EF Core ve EF6 dışındaki ORM'ler (Dapper vb.).
+- .NET Framework 4.6.2'den eski sürümler (4.5.2 vb.; Microsoft desteği bitti).
 - Dashboard/UI.
 - Otomatik sorgu düzeltme (runtime'da).
 - AI/LLM ile doküman üretimi (model boyutu ve IDE performansı nedeniyle; kural tabanlı üreteç seçildi).

@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Operations;
@@ -5,8 +6,8 @@ using Microsoft.CodeAnalysis.Operations;
 namespace AspGuard.Analyzers;
 
 /// <summary>
-/// Semantic recognition of EF Core queries. Names alone are never trusted: the receiver must trace back to a
-/// <c>DbSet&lt;T&gt;</c> (or the method must live in an EF Core extension class).
+/// Semantic recognition of EF Core and Entity Framework 6 queries. Names alone are never trusted: the receiver must trace
+/// back to a <c>DbSet&lt;T&gt;</c> (or the method must live in an EF extension class).
 /// </summary>
 internal sealed class EfSymbols
 {
@@ -19,27 +20,54 @@ internal sealed class EfSymbols
     };
 
     private readonly Compilation _compilation;
-    private readonly INamedTypeSymbol _dbSet;
-    private readonly INamedTypeSymbol _dbContext;
-    private readonly INamedTypeSymbol? _efQueryableExtensions;
+    private readonly ImmutableArray<INamedTypeSymbol> _dbSets;
+    private readonly ImmutableArray<INamedTypeSymbol> _dbContexts;
+    private readonly ImmutableArray<INamedTypeSymbol> _efQueryableExtensions;
+    private readonly ImmutableArray<INamedTypeSymbol> _otherEfTypes;
     private readonly INamedTypeSymbol? _queryable;
     private readonly INamedTypeSymbol? _enumerable;
 
-    private EfSymbols(Compilation compilation, INamedTypeSymbol dbSet, INamedTypeSymbol dbContext)
+    private EfSymbols(Compilation compilation, ImmutableArray<INamedTypeSymbol> dbSets, ImmutableArray<INamedTypeSymbol> dbContexts)
     {
         _compilation = compilation;
-        _dbSet = dbSet;
-        _dbContext = dbContext;
-        _efQueryableExtensions = compilation.GetTypeByMetadataName("Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions");
+        _dbSets = dbSets;
+        _dbContexts = dbContexts;
+        _efQueryableExtensions = Types(compilation, "Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions", "System.Data.Entity.QueryableExtensions");
+
+        // Query composition and execution helpers outside the main extension classes (relational EF Core, EF6 raw SQL).
+        _otherEfTypes = Types(
+            compilation,
+            "Microsoft.EntityFrameworkCore.RelationalQueryableExtensions",
+            "Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions",
+            "System.Data.Entity.Database",
+            "System.Data.Entity.Infrastructure.DbRawSqlQuery`1",
+            "System.Data.Entity.Infrastructure.DbSqlQuery`1");
         _queryable = compilation.GetTypeByMetadataName("System.Linq.Queryable");
         _enumerable = compilation.GetTypeByMetadataName("System.Linq.Enumerable");
     }
 
     public static EfSymbols? Create(Compilation compilation)
     {
-        var dbSet = compilation.GetTypeByMetadataName("Microsoft.EntityFrameworkCore.DbSet`1");
-        var dbContext = compilation.GetTypeByMetadataName("Microsoft.EntityFrameworkCore.DbContext");
-        return dbSet is null || dbContext is null ? null : new EfSymbols(compilation, dbSet, dbContext);
+        // EF Core and EF6 (System.Data.Entity); IDbSet<T> is the interface older EF6 code declares its sets with.
+        var dbSets = Types(compilation, "Microsoft.EntityFrameworkCore.DbSet`1", "System.Data.Entity.DbSet`1", "System.Data.Entity.DbSet", "System.Data.Entity.IDbSet`1");
+        var dbContexts = Types(compilation, "Microsoft.EntityFrameworkCore.DbContext", "System.Data.Entity.DbContext");
+        return dbSets.IsEmpty || dbContexts.IsEmpty ? null : new EfSymbols(compilation, dbSets, dbContexts);
+    }
+
+    private static ImmutableArray<INamedTypeSymbol> Types(Compilation compilation, params string[] names) =>
+        names.Select(compilation.GetTypeByMetadataName).Where(t => t is not null).Select(t => t!).ToImmutableArray();
+
+    private static bool AnyEquals(ImmutableArray<INamedTypeSymbol> candidates, ITypeSymbol? type)
+    {
+        foreach (var candidate in candidates)
+        {
+            if (SymbolEqualityComparer.Default.Equals(type, candidate))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public Compilation Compilation => _compilation;
@@ -54,7 +82,7 @@ internal sealed class EfSymbols
     {
         for (var t = type; t is not null; t = t.BaseType)
         {
-            if (SymbolEqualityComparer.Default.Equals(t.OriginalDefinition, _dbSet))
+            if (AnyEquals(_dbSets, t.OriginalDefinition))
             {
                 return true;
             }
@@ -67,7 +95,7 @@ internal sealed class EfSymbols
     {
         for (var t = type; t is not null; t = t.BaseType)
         {
-            if (SymbolEqualityComparer.Default.Equals(t, _dbContext))
+            if (AnyEquals(_dbContexts, t))
             {
                 return true;
             }
@@ -93,7 +121,7 @@ internal sealed class EfSymbols
             return false;
         }
 
-        if (SymbolEqualityComparer.Default.Equals(containing, _efQueryableExtensions))
+        if (AnyEquals(_efQueryableExtensions, containing))
         {
             return true;
         }
@@ -132,8 +160,8 @@ internal sealed class EfSymbols
                 var containing = method.ContainingType;
                 var isLinq = SymbolEqualityComparer.Default.Equals(containing, _queryable)
                     || SymbolEqualityComparer.Default.Equals(containing, _enumerable)
-                    || SymbolEqualityComparer.Default.Equals(containing, _efQueryableExtensions)
-                    || containing.ToDisplayString() == "Microsoft.EntityFrameworkCore.RelationalQueryableExtensions";
+                    || AnyEquals(_efQueryableExtensions, containing)
+                    || AnyEquals(_otherEfTypes, containing);
                 if (!isLinq || IsExecutionName(method.Name))
                 {
                     return false;
@@ -159,9 +187,9 @@ internal sealed class EfSymbols
 
     public bool IsEnumerableType(ITypeSymbol? type) => SymbolEqualityComparer.Default.Equals(type, _enumerable);
 
-    public bool IsEfQueryableExtensions(ITypeSymbol? type) => SymbolEqualityComparer.Default.Equals(type, _efQueryableExtensions);
+    public bool IsEfQueryableExtensions(ITypeSymbol? type) => AnyEquals(_efQueryableExtensions, type);
 
-    /// <summary>True for EF Core's async entry points (query extensions, DbSet/DbContext methods, raw SQL helpers).</summary>
+    /// <summary>True for EF's async entry points (query extensions, DbSet/DbContext methods, raw SQL helpers).</summary>
     public bool IsEfAsyncCall(IInvocationOperation invocation)
     {
         var method = invocation.TargetMethod;
@@ -174,7 +202,7 @@ internal sealed class EfSymbols
         return IsEfQueryableExtensions(containing)
             || IsDbSet(containing)
             || IsDbContext(containing)
-            || containing.ToDisplayString() is "Microsoft.EntityFrameworkCore.RelationalDatabaseFacadeExtensions" or "Microsoft.EntityFrameworkCore.RelationalQueryableExtensions";
+            || AnyEquals(_otherEfTypes, containing.OriginalDefinition);
     }
 
     /// <summary>True when any method along the first-argument chain has one of the given names (e.g. <c>Take</c>).</summary>

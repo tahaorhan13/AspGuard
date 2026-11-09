@@ -17,13 +17,18 @@ public sealed class AspGuardScope : IDisposable
     private AspGuardRuntime? _runtime;
     private int _total;
     private CallSite? _excessiveSite;
+    private readonly bool _ambient;
     private int _disposed;
 
-    private AspGuardScope(string name)
+    private AspGuardScope(string name, bool ambient = true)
     {
         Name = name;
-        _previous = _current.Value;
-        _current.Value = this;
+        _ambient = ambient;
+        if (ambient)
+        {
+            _previous = _current.Value;
+            _current.Value = this;
+        }
     }
 
     /// <summary>Name given to <see cref="Begin(string?)"/>.</summary>
@@ -41,7 +46,13 @@ public sealed class AspGuardScope : IDisposable
         }
     }
 
-    internal static AspGuardScope? Current => _current.Value;
+    internal static AspGuardScope? Current => _current.Value ?? AmbientFallback?.Invoke();
+
+    /// <summary>
+    /// Where to look when no <see cref="AsyncLocal{T}"/> scope flows, e.g. ASP.NET 4.x, where a value set in an
+    /// <c>IHttpModule</c> event does not reach the handler; the module keeps the scope in <c>HttpContext.Items</c>.
+    /// </summary>
+    internal static Func<AspGuardScope?>? AmbientFallback { get; set; }
 
     internal static bool IsSuppressed => _suppressed.Value;
 
@@ -90,7 +101,11 @@ public sealed class AspGuardScope : IDisposable
             return;
         }
 
-        _current.Value = _previous;
+        if (_ambient)
+        {
+            _current.Value = _previous;
+        }
+
         _runtime?.ReportAtScopeEnd(this);
     }
 
@@ -100,6 +115,14 @@ public sealed class AspGuardScope : IDisposable
     internal static AspGuardScope Begin(string name, AspGuardRuntime runtime)
     {
         var scope = new AspGuardScope(name);
+        scope.Bind(runtime);
+        return scope;
+    }
+
+    /// <summary>Creates a scope bound to <paramref name="runtime"/> that is not made ambient (found through <see cref="AmbientFallback"/>).</summary>
+    internal static AspGuardScope CreateDetached(string name, AspGuardRuntime runtime)
+    {
+        var scope = new AspGuardScope(name, ambient: false);
         scope.Bind(runtime);
         return scope;
     }
