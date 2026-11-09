@@ -1,6 +1,6 @@
+using AspGuard.Sample.Api;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using AspGuard.Sample.Api;
 
 var builder = WebApplication.CreateBuilder(args);
 

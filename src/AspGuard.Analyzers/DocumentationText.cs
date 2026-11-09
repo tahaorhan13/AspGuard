@@ -12,7 +12,7 @@ internal static class DocumentationText
     public const string Turkish = "tr";
     public const string English = "en";
 
-    private static readonly HashSet<string> Prepositions = new(StringComparer.OrdinalIgnoreCase) { "by", "for", "from", "to", "into", "with", "in", "of", "at" };
+    private static readonly HashSet<string> _prepositions = new(StringComparer.OrdinalIgnoreCase) { "by", "for", "from", "to", "into", "with", "in", "of", "at" };
 
     /// <summary>Summary for a method name, already XML-escaped. Returns <c>null</c> when nothing sensible can be said.</summary>
     public static string? ForMethod(string name, string language)
@@ -112,7 +112,7 @@ internal static class DocumentationText
         for (var i = start; i < words.Count; i++)
         {
             var word = words[i];
-            if (Prepositions.Contains(word) && i + 1 < words.Count)
+            if (_prepositions.Contains(word) && i + 1 < words.Count)
             {
                 target = [];
                 phrases.Add((word.ToLowerInvariant(), target));

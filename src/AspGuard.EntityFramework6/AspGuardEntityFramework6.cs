@@ -13,7 +13,7 @@ namespace AspGuard.EntityFramework6;
 /// </summary>
 public static class AspGuardEntityFramework6
 {
-    private static readonly object Gate = new();
+    private static readonly object _gate = new();
     private static Ef6Interceptor? _interceptor;
 
     /// <summary>
@@ -23,7 +23,7 @@ public static class AspGuardEntityFramework6
     /// </summary>
     public static void Register()
     {
-        lock (Gate)
+        lock (_gate)
         {
             if (_interceptor is not null)
             {
@@ -38,7 +38,7 @@ public static class AspGuardEntityFramework6
     /// <summary>Removes the interceptor again (tests only).</summary>
     internal static void Unregister()
     {
-        lock (Gate)
+        lock (_gate)
         {
             if (_interceptor is not null)
             {

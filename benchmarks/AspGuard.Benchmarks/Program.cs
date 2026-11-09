@@ -1,8 +1,8 @@
+using AspGuard;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using AspGuard;
 using Microsoft.Extensions.Logging.Abstractions;
 
 BenchmarkRunner.Run<InterceptorOverhead>(args: args);

@@ -101,7 +101,7 @@ internal static class TurkishText
 
     private static Word A(string text) => new(text, adjective: true);
 
-    private static readonly Dictionary<string, Word> Words = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly Dictionary<string, Word> _words = new(StringComparer.OrdinalIgnoreCase)
     {
         // People and organisations.
         ["person"] = N("kişi"), ["people"] = new("kişiler", plural: true), ["user"] = N("kullanıcı"), ["customer"] = N("müşteri"),
@@ -327,7 +327,7 @@ internal static class TurkishText
 
     private static (Word? Word, bool Plural, string Raw) Lookup(string raw)
     {
-        if (Words.TryGetValue(raw, out var word))
+        if (_words.TryGetValue(raw, out var word))
         {
             return (word, false, raw);
         }
@@ -335,7 +335,7 @@ internal static class TurkishText
         foreach (var (suffix, replacement) in new[] { ("ies", "y"), ("ses", "s"), ("xes", "x"), ("ches", "ch"), ("shes", "sh"), ("s", string.Empty) })
         {
             if (raw.Length > suffix.Length + 1 && raw.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)
-                && Words.TryGetValue(raw.Substring(0, raw.Length - suffix.Length) + replacement, out word))
+                && _words.TryGetValue(raw.Substring(0, raw.Length - suffix.Length) + replacement, out word))
             {
                 return (word, true, raw);
             }

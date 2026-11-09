@@ -1,6 +1,5 @@
-using AspGuard.EntityFramework6;
-
 using System.Data.Entity;
+using AspGuard.EntityFramework6;
 
 namespace AspGuard.Framework.Tests;
 

@@ -13,11 +13,11 @@ namespace AspGuard;
 /// </summary>
 internal static class EfDiagnosticsObserver
 {
-    private static readonly string CommandExecuting = RelationalEventId.CommandExecuting.Name!;
-    private static readonly ConditionalWeakTable<IDbContextOptions, object> UsesInterceptor = new();
-    private static readonly object Yes = new();
-    private static readonly object No = new();
-    private static readonly object Gate = new();
+    private static readonly string _commandExecuting = RelationalEventId.CommandExecuting.Name!;
+    private static readonly ConditionalWeakTable<IDbContextOptions, object> _usesInterceptor = new();
+    private static readonly object _yes = new();
+    private static readonly object _no = new();
+    private static readonly object _gate = new();
     // Copy-on-write; usually one runtime per process (several in test runs that host many apps). The last one is the default.
     private static AspGuardRuntime[] _attached = [];
     private static IDisposable? _subscription;
@@ -25,7 +25,7 @@ internal static class EfDiagnosticsObserver
     /// <summary>Makes <paramref name="runtime"/> the default target and starts listening (once per process).</summary>
     public static void Attach(AspGuardRuntime runtime)
     {
-        lock (Gate)
+        lock (_gate)
         {
             _attached = [.. _attached.Where(r => !ReferenceEquals(r, runtime)), runtime];
             _subscription ??= DiagnosticListener.AllListeners.Subscribe(new AllListenersObserver());
@@ -35,7 +35,7 @@ internal static class EfDiagnosticsObserver
     /// <summary>Stops routing to <paramref name="runtime"/> (called when the runtime is disposed with its host).</summary>
     public static void Detach(AspGuardRuntime runtime)
     {
-        lock (Gate)
+        lock (_gate)
         {
             _attached = [.. _attached.Where(r => !ReferenceEquals(r, runtime))];
         }
@@ -44,7 +44,7 @@ internal static class EfDiagnosticsObserver
     // Asked by EF before it builds the event payload; returning false keeps the disabled path allocation-free.
     private static bool IsEnabled(string name)
     {
-        if (!string.Equals(name, CommandExecuting, StringComparison.Ordinal))
+        if (!string.Equals(name, _commandExecuting, StringComparison.Ordinal))
         {
             return false;
         }
@@ -108,10 +108,10 @@ internal static class EfDiagnosticsObserver
         }
 
         var options = context.GetService<IDbContextOptions>();
-        var flag = UsesInterceptor.GetValue(
+        var flag = _usesInterceptor.GetValue(
             options,
-            static o => o.FindExtension<CoreOptionsExtension>()?.Interceptors?.Any(i => i is AspGuardInterceptor) == true ? Yes : No);
-        return ReferenceEquals(flag, Yes);
+            static o => o.FindExtension<CoreOptionsExtension>()?.Interceptors?.Any(i => i is AspGuardInterceptor) == true ? _yes : _no);
+        return ReferenceEquals(flag, _yes);
     }
 
     private sealed class AllListenersObserver : IObserver<DiagnosticListener>
@@ -137,7 +137,7 @@ internal static class EfDiagnosticsObserver
     {
         public void OnNext(KeyValuePair<string, object?> value)
         {
-            if (string.Equals(value.Key, CommandExecuting, StringComparison.Ordinal))
+            if (string.Equals(value.Key, _commandExecuting, StringComparison.Ordinal))
             {
                 OnCommand(value.Value);
             }

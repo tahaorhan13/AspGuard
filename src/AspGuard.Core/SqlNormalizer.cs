@@ -233,9 +233,9 @@ internal static partial class SqlNormalizer
     private const string InListPattern = @"\b(IN)\s*\(\s*\?(?:\s*,\s*\?)*\s*\)";
 
 #if NETFRAMEWORK
-    private static readonly Regex InListRegex = new(InListPattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+    private static readonly Regex _inListRegex = new(InListPattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
-    private static Regex InList() => InListRegex;
+    private static Regex InList() => _inListRegex;
 #else
     [GeneratedRegex(InListPattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex InList();

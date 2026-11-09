@@ -16,9 +16,9 @@ internal sealed partial class RequestGuard
     internal const string FindingsHeader = "X-AspGuard-Query-Findings";
 
     // Header names ASP.NET and IIS add that reveal the server technology.
-    private static readonly string[] TechnologyHeaders = ["Server", "X-AspNet-Version", "X-AspNetMvc-Version", "X-Powered-By"];
+    private static readonly string[] _technologyHeaders = ["Server", "X-AspNet-Version", "X-AspNetMvc-Version", "X-Powered-By"];
 
-    private static readonly object Gate = new();
+    private static readonly object _gate = new();
     private static RequestGuard? _current;
 
     private readonly AspGuardRuntime _runtime;
@@ -53,7 +53,7 @@ internal sealed partial class RequestGuard
                 return current;
             }
 
-            lock (Gate)
+            lock (_gate)
             {
                 if (_current is null || !ReferenceEquals(_current._runtime, runtime))
                 {
@@ -145,7 +145,7 @@ internal sealed partial class RequestGuard
 
             if (security.Headers.RemoveServerHeader && existing is not null)
             {
-                foreach (var name in TechnologyHeaders)
+                foreach (var name in _technologyHeaders)
                 {
                     existing.Remove(name);
                 }

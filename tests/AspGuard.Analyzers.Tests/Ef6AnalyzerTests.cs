@@ -26,7 +26,7 @@ public class Ef6AnalyzerTests
 
         """;
 
-    private static readonly ReferenceAssemblies References = ReferenceAssemblies.NetFramework.Net48.Default.AddPackages(
+    private static readonly ReferenceAssemblies _references = ReferenceAssemblies.NetFramework.Net48.Default.AddPackages(
         ImmutableArray.Create(new PackageIdentity("EntityFramework", "6.5.2")));
 
     private static string InMethod(string statements, bool isAsync = false) =>
@@ -42,7 +42,7 @@ public class Ef6AnalyzerTests
 
     private static Task Verify<TAnalyzer>(string statements, bool isAsync = false)
         where TAnalyzer : DiagnosticAnalyzer, new() =>
-        new CSharpAnalyzerTest<TAnalyzer, DefaultVerifier> { TestCode = InMethod(statements, isAsync), ReferenceAssemblies = References }.RunAsync();
+        new CSharpAnalyzerTest<TAnalyzer, DefaultVerifier> { TestCode = InMethod(statements, isAsync), ReferenceAssemblies = _references }.RunAsync();
 
     private static Task Fix<TAnalyzer, TFix>(string before, string after)
         where TAnalyzer : DiagnosticAnalyzer, new()
@@ -51,7 +51,7 @@ public class Ef6AnalyzerTests
         {
             TestCode = InMethod(before),
             FixedCode = InMethod(after),
-            ReferenceAssemblies = References,
+            ReferenceAssemblies = _references,
         }.RunAsync();
 
     // AG001: queries in loops.

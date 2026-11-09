@@ -11,9 +11,9 @@ namespace AspGuard;
 /// </summary>
 public static class AspGuardFramework
 {
-    private static readonly object Gate = new();
-    private static readonly List<Action<AspGuardOptions>> Defaults = [];
-    private static readonly List<Action<AspGuardOptions>> Configurations = [];
+    private static readonly object _gate = new();
+    private static readonly List<Action<AspGuardOptions>> _defaults = [];
+    private static readonly List<Action<AspGuardOptions>> _configurations = [];
     private static ILoggerFactory? _loggerFactory;
     private static AspGuardRuntime? _runtime;
 
@@ -29,7 +29,7 @@ public static class AspGuardFramework
         get => _loggerFactory;
         set
         {
-            lock (Gate)
+            lock (_gate)
             {
                 _loggerFactory = value;
                 _runtime = null;
@@ -46,9 +46,9 @@ public static class AspGuardFramework
             throw new ArgumentNullException(nameof(configure));
         }
 
-        lock (Gate)
+        lock (_gate)
         {
-            Configurations.Add(configure);
+            _configurations.Add(configure);
             _runtime = Build();
         }
     }
@@ -63,7 +63,7 @@ public static class AspGuardFramework
                 return runtime;
             }
 
-            lock (Gate)
+            lock (_gate)
             {
                 return _runtime ??= Build();
             }
@@ -73,9 +73,9 @@ public static class AspGuardFramework
     /// <summary>Package defaults (for example "query detection only when debugging"), applied before user configuration.</summary>
     internal static void AddDefault(Action<AspGuardOptions> configure)
     {
-        lock (Gate)
+        lock (_gate)
         {
-            Defaults.Add(configure);
+            _defaults.Add(configure);
             _runtime = null;
         }
     }
@@ -86,10 +86,10 @@ public static class AspGuardFramework
     /// <summary>Forgets every setting (tests only).</summary>
     internal static void Reset()
     {
-        lock (Gate)
+        lock (_gate)
         {
-            Defaults.Clear();
-            Configurations.Clear();
+            _defaults.Clear();
+            _configurations.Clear();
             _loggerFactory = null;
             _runtime = null;
         }
@@ -98,7 +98,7 @@ public static class AspGuardFramework
     private static AspGuardRuntime Build()
     {
         var options = new AspGuardOptions();
-        foreach (var configure in Defaults.Concat(Configurations))
+        foreach (var configure in _defaults.Concat(_configurations))
         {
             configure(options);
         }

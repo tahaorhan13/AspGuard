@@ -13,7 +13,7 @@ namespace AspGuard.SystemWeb;
 /// </summary>
 public static class AspGuardSystemWeb
 {
-    private static readonly object Gate = new();
+    private static readonly object _gate = new();
     private static bool _started;
 
     /// <summary>
@@ -28,7 +28,7 @@ public static class AspGuardSystemWeb
     /// </summary>
     public static void Start()
     {
-        lock (Gate)
+        lock (_gate)
         {
             if (_started)
             {

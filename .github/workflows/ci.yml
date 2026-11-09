@@ -27,6 +27,11 @@ jobs:
       - name: Build
         run: dotnet build AspGuard.slnx -c Release --no-restore
 
+      # Naming and import-order rules (e.g. IDE1006) only show in the IDE; check them here.
+      - name: Code style
+        if: matrix.os == 'windows-latest'
+        run: dotnet format style AspGuard.slnx --verify-no-changes --severity warn --no-restore
+
       - name: Test
         run: dotnet test AspGuard.slnx -c Release --no-build --logger "trx;LogFileName=test-results.trx"
 
